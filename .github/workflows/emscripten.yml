@@ -72,5 +72,5 @@ jobs:
       - name: Test matplotlib for Pyodide
         run: |
           source .venv-pyodide/bin/activate
-          cd ..
-          pytest --pyargs matplotlib
+          pip install pytest
+          pytest --pyargs matplotlib.tests
