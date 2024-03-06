@@ -672,6 +672,11 @@ def test_interactive_timers(env):
                 timeout=_test_timeout, extra_env=env)
 
 
+@pytest.mark.skipif(
+    ((sys.platform == "emscripten") or (platform.machine() in ["wasm32", "wasm64"])),
+    reason="Pyodide does not support threading: "
+    "https://github.com/pyodide/pyodide/issues/237"
+    )
 def _test_sigint_impl(backend, target_name, kwargs):
     import sys
     import matplotlib.pyplot as plt

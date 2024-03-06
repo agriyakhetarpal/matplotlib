@@ -126,9 +126,16 @@ def test_figuremanager_preserves_host_mainloop():
         print("success")
 
 
-@pytest.mark.skipif(platform.python_implementation() != 'CPython',
-                    reason='PyPy does not support Tkinter threading: '
-                           'https://foss.heptapod.net/pypy/pypy/-/issues/1929')
+@pytest.mark.skipif(
+        platform.python_implementation() == "PyPy",
+        reason="PyPy does not support Tkinter threading: "
+        "https://foss.heptapod.net/pypy/pypy/-/issues/1929"
+    )
+@pytest.mark.skipif(
+    ((sys.platform == "emscripten") or (platform.machine() in ["wasm32", "wasm64"])),
+    reason="Pyodide does not support threading: "
+    "https://github.com/pyodide/pyodide/issues/237"
+    )
 @pytest.mark.flaky(reruns=3)
 @_isolated_tk_test(success_count=1)
 def test_figuremanager_cleans_own_mainloop():

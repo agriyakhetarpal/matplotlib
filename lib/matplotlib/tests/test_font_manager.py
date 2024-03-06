@@ -3,6 +3,7 @@ import gc
 import multiprocessing
 import os
 from pathlib import Path
+import platform
 from PIL import Image
 import shutil
 import sys
@@ -248,6 +249,11 @@ def test_missing_family(caplog):
     ]
 
 
+@pytest.mark.skipif(
+    ((sys.platform == "emscripten") or (platform.machine() in ["wasm32", "wasm64"])),
+    reason="Pyodide does not support threading: "
+    "https://github.com/pyodide/pyodide/issues/237"
+    )
 def _test_threading():
     import threading
     from matplotlib.ft2font import LOAD_NO_HINTING
