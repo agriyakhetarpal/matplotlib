@@ -1,0 +1,211 @@
+From 9aaf02a5b93918101147f615a322736d55085c27 Mon Sep 17 00:00:00 2001
+From: Agriya Khetarpal <74401230+agriyakhetarpal@users.noreply.github.com>
+Date: Wed, 6 Mar 2024 23:57:09 +0530
+Subject: [PATCH] Monkey patch Matplotlib to remove instances of the threading module in the codebase
+
+Threading is not yet supported on Pyodide, please see https://github.com/pyodide/pyodide/issues/237
+for more information. Some file changes here can be attributed to the author of the original patch at
+https://github.com/pyodide/pyodide/blob/main/packages/matplotlib/patches/0002-fix-threading.patch
+---
+ backends/backend_webagg.py |  8 +----
+ figure.py                  | 37 ++++++++++-------------
+ font_manager.py            | 11 ++-----
+ pyplot.py                  | 25 ---------------
+ 4 files changed, 20 insertions(+), 61 deletions(-)
+
+diff --git a/backends/backend_webagg.py b/backends/backend_webagg.py
+index dfc5747ef7..3470e007cd 100644
+--- a/backends/backend_webagg.py
++++ b/backends/backend_webagg.py
+@@ -18,7 +18,6 @@ from pathlib import Path
+ import random
+ import sys
+ import signal
+-import threading
+
+ try:
+     import tornado
+@@ -37,10 +36,6 @@ from .backend_webagg_core import (  # noqa: F401 # pylint: disable=W0611
+     TimerAsyncio, TimerTornado)
+
+
+-webagg_server_thread = threading.Thread(
+-    target=lambda: tornado.ioloop.IOLoop.instance().start())
+-
+-
+ class FigureManagerWebAgg(core.FigureManagerWebAgg):
+     _toolbar2_class = core.NavigationToolbar2WebAgg
+
+@@ -307,8 +302,7 @@ def ipython_inline_display(figure):
+     try:
+         asyncio.get_running_loop()
+     except RuntimeError:
+-        if not webagg_server_thread.is_alive():
+-            webagg_server_thread.start()
++        pass
+
+     fignum = figure.number
+     tpl = Path(core.FigureManagerWebAgg.get_static_file_path(),
+diff --git a/figure.py b/figure.py
+index 12ab090288..21076924c5 100644
+--- a/figure.py
++++ b/figure.py
+@@ -32,7 +32,6 @@ import inspect
+ import itertools
+ import logging
+ from numbers import Integral
+-import threading
+
+ import numpy as np
+
+@@ -2331,8 +2330,6 @@ class Figure(FigureBase):
+     # parsed text, but only one figure can draw at a time and so the font cache
+     # and mathtext cache are used by only one renderer at a time.
+
+-    _render_lock = threading.RLock()
+-
+     def __str__(self):
+         return "Figure(%gx%g)" % tuple(self.bbox.size)
+
+@@ -3086,27 +3083,25 @@ None}, default: None
+         if not self.get_visible():
+             return
+
+-        with self._render_lock:
+-
+-            artists = self._get_draw_artists(renderer)
+-            try:
+-                renderer.open_group('figure', gid=self.get_gid())
+-                if self.axes and self.get_layout_engine() is not None:
+-                    try:
+-                        self.get_layout_engine().execute(self)
+-                    except ValueError:
+-                        pass
+-                        # ValueError can occur when resizing a window.
++        artists = self._get_draw_artists(renderer)
++        try:
++            renderer.open_group('figure', gid=self.get_gid())
++            if self.axes and self.get_layout_engine() is not None:
++                try:
++                    self.get_layout_engine().execute(self)
++                except ValueError:
++                    pass
++                    # ValueError can occur when resizing a window.
+
+-                self.patch.draw(renderer)
+-                mimage._draw_list_compositing_images(
+-                    renderer, self, artists, self.suppressComposite)
++            self.patch.draw(renderer)
++            mimage._draw_list_compositing_images(
++                renderer, self, artists, self.suppressComposite)
+
+-                renderer.close_group('figure')
+-            finally:
+-                self.stale = False
++            renderer.close_group('figure')
++        finally:
++            self.stale = False
+
+-            DrawEvent("draw_event", self.canvas, renderer)._process()
++        DrawEvent("draw_event", self.canvas, renderer)._process()
+
+     def draw_without_rendering(self):
+         """
+diff --git a/font_manager.py b/font_manager.py
+index 73da3c418d..e07a32689c 100644
+--- a/font_manager.py
++++ b/font_manager.py
+@@ -42,7 +42,6 @@ import plistlib
+ import re
+ import subprocess
+ import sys
+-import threading
+
+ import matplotlib as mpl
+ from matplotlib import _api, _afm, cbook, ft2font
+@@ -1033,10 +1032,8 @@ class FontManager:
+         self.afmlist = []
+         self.ttflist = []
+
+-        # Delay the warning by 5s.
+-        timer = threading.Timer(5, lambda: _log.warning(
+-            'Matplotlib is building the font cache; this may take a moment.'))
+-        timer.start()
++        _log.warning('Matplotlib is building the font cache; this may take a moment.')
++
+         try:
+             for fontext in ["afm", "ttf"]:
+                 for path in [*findSystemFonts(paths, fontext=fontext),
+@@ -1049,7 +1046,7 @@ class FontManager:
+                         _log.info("Failed to extract font properties from %s: "
+                                   "%s", path, exc)
+         finally:
+-            timer.cancel()
++            pass
+
+     def addfont(self, path):
+         """
+@@ -1559,8 +1556,6 @@ def get_font(font_filepaths, hinting_factor=None):
+         paths,
+         hinting_factor,
+         _kerning_factor=mpl.rcParams['text.kerning_factor'],
+-        # also key on the thread ID to prevent segfaults with multi-threading
+-        thread_id=threading.get_ident()
+     )
+
+
+diff --git a/pyplot.py b/pyplot.py
+index c5044fe724..6279ce11eb 100644
+--- a/pyplot.py
++++ b/pyplot.py
+@@ -46,7 +46,6 @@ import importlib
+ import inspect
+ import logging
+ import sys
+-import threading
+ import time
+ from typing import TYPE_CHECKING, cast, overload
+
+@@ -433,32 +432,9 @@ def switch_backend(newbackend: str) -> None:
+     install_repl_displayhook()
+
+
+-def _warn_if_gui_out_of_main_thread() -> None:
+-    warn = False
+-    canvas_class = cast(type[FigureCanvasBase], _get_backend_mod().FigureCanvas)
+-    if canvas_class.required_interactive_framework:
+-        if hasattr(threading, 'get_native_id'):
+-            # This compares native thread ids because even if Python-level
+-            # Thread objects match, the underlying OS thread (which is what
+-            # really matters) may be different on Python implementations with
+-            # green threads.
+-            if threading.get_native_id() != threading.main_thread().native_id:
+-                warn = True
+-        else:
+-            # Fall back to Python-level Thread if native IDs are unavailable,
+-            # mainly for PyPy.
+-            if threading.current_thread() is not threading.main_thread():
+-                warn = True
+-    if warn:
+-        _api.warn_external(
+-            "Starting a Matplotlib GUI outside of the main thread will likely "
+-            "fail.")
+-
+-
+ # This function's signature is rewritten upon backend-load by switch_backend.
+ def new_figure_manager(*args, **kwargs):
+     """Create a new figure manager instance."""
+-    _warn_if_gui_out_of_main_thread()
+     return _get_backend_mod().new_figure_manager(*args, **kwargs)
+
+
+@@ -520,7 +496,6 @@ def show(*args, **kwargs) -> None:
+     the end of every cell by default. Thus, you usually don't have to call it
+     explicitly there.
+     """
+-    _warn_if_gui_out_of_main_thread()
+     return _get_backend_mod().show(*args, **kwargs)
+
+
+--
+2.39.3 (Apple Git-145)
