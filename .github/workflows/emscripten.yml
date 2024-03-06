@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   build-wasm-emscripten:
-    name: Build matplotlib distribution for Pyodide
+    name: Build Matplotlib distribution for Pyodide
     runs-on: ubuntu-22.04
     # To enable this workflow on a fork, comment out:
     # if: github.repository == 'matplotlib/matplotlib'
@@ -34,7 +34,7 @@ jobs:
       EMSCRIPTEN_VERSION: 3.1.46
       NODE_VERSION: 18
     steps:
-      - name: Checkout matplotlib
+      - name: Checkout Matplotlib
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
         with:
           fetch-depth: 0
@@ -54,23 +54,67 @@ jobs:
       - name: Install pyodide-build
         run: pip install "pydantic<2" pyodide-build==${{ env.PYODIDE_VERSION }}
 
-      - name: Build matplotlib for Pyodide
+      - name: Build Matplotlib for Pyodide
         run: |
           pyodide build
+
+      - name: Upload wheel
+        uses: actions/upload-artifact@5d5d22a31266ced268874388b861e4b58bb5c2f3  # v4.3.1
+        with:
+          name: matplotlib-pyodide-wheel
+          path: dist/*.whl
+
+  test-pyodide:
+    name: Test Matplotlib Pyodide distribution
+    runs-on: ubuntu-22.04
+    needs: [build-wasm-emscripten]
+    env:
+      PYODIDE_VERSION: 0.25.0
+      EMSCRIPTEN_VERSION: 3.1.46
+      PYTHON_VERSION: 3.11.3
+      NODE_VERSION: 18
+    steps:
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@0a5c61591373683505ea898e09a3ea4f39ef2b9c  # v5.0.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Set up Node.js
         uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8  # v4.0.2
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Set up Pyodide virtual environment
+      - name: Set up Emscripten toolchain
+        uses: mymindstorm/setup-emsdk@6ab9eb1bda2574c4ddb79809fc9247783eaf9021  # v14
+        with:
+          version: ${{ env.EMSCRIPTEN_VERSION }}
+          actions-cache-folder: emsdk-cache
+
+      - name: Install pyodide-build
+        run: pip install "pydantic<2" pyodide-build==${{ env.PYODIDE_VERSION }}
+
+      - name: Check out baseline images from Matplotlib
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+        with:
+          sparse-checkout: lib/matplotlib/tests/baseline_images/
+
+      - name: Download Matplotlib wheel
+        uses: actions/download-artifact@c850b930e6ba138125429b7e5c93fc707a7f8427  # v4.1.4
+        with:
+          name: matplotlib-pyodide-wheel
+          path: dist
+
+      - name: Set up Pyodide virtual environment and install Matplotlib Pyodide wheel
         run: |
           pyodide venv .venv-pyodide
           source .venv-pyodide/bin/activate
           pip install dist/*.whl
 
-      - name: Test matplotlib for Pyodide
+      - name: Test Matplotlib for Pyodide
         run: |
           source .venv-pyodide/bin/activate
           pip install pytest
-          pytest -rfEsXR --log-level=DEBUG --color=yes
+          mkdir -p .venv-pyodide/lib/python3.11/site-packages/matplotlib/tests/baseline_images/
+          mv lib/matplotlib/tests/baseline_images/* \
+          .venv-pyodide/lib/python3.11/site-packages/matplotlib/tests/
+          python -m pytest --pyargs .venv-pyodide/lib/python3.11/site-packages/matplotlib/tests/
