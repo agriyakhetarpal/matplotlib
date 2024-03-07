@@ -9,7 +9,16 @@ on:
   workflow_dispatch:
 
 env:
+  # Coloured output for GitHub Actions logs
   FORCE_COLOR: 3
+  PYODIDE_VERSION: 0.25.0
+  # PYTHON_VERSION and EMSCRIPTEN_VERSION are determined by PYODIDE_VERSION.
+  # The appropriate versions can be found in the Pyodide repodata.json
+  # "info" field, or in Makefile.envs:
+  # https://github.com/pyodide/pyodide/blob/main/Makefile.envs#L2
+  PYTHON_VERSION: 3.11.3
+  EMSCRIPTEN_VERSION: 3.1.46
+  NODE_VERSION: 18
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -24,15 +33,6 @@ jobs:
     runs-on: ubuntu-22.04
     # To enable this workflow on a fork, comment out:
     # if: github.repository == 'matplotlib/matplotlib'
-    env:
-      PYODIDE_VERSION: 0.25.0
-      # PYTHON_VERSION and EMSCRIPTEN_VERSION are determined by PYODIDE_VERSION.
-      # The appropriate versions can be found in the Pyodide repodata.json
-      # "info" field, or in Makefile.envs:
-      # https://github.com/pyodide/pyodide/blob/main/Makefile.envs#L2
-      PYTHON_VERSION: 3.11.3
-      EMSCRIPTEN_VERSION: 3.1.46
-      NODE_VERSION: 18
     steps:
       - name: Checkout Matplotlib
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
@@ -65,14 +65,9 @@ jobs:
           path: dist/*.whl
 
   test-pyodide:
-    name: Test Matplotlib Pyodide distribution
+    name: Test Matplotlib distribution for Pyodide
     runs-on: ubuntu-22.04
     needs: [build-wasm-emscripten]
-    env:
-      PYODIDE_VERSION: 0.25.0
-      EMSCRIPTEN_VERSION: 3.1.46
-      PYTHON_VERSION: 3.11.3
-      NODE_VERSION: 18
     steps:
       - name: Set up Python ${{ env.PYTHON_VERSION }}
         uses: actions/setup-python@0a5c61591373683505ea898e09a3ea4f39ef2b9c  # v5.0.0
@@ -99,6 +94,12 @@ jobs:
           sparse-checkout: lib/matplotlib/tests/baseline_images/
           path: baseline_images
 
+      - name: Check out patch(es) from Matplotlib
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+        with:
+          sparse-checkout: ci/emscripten/patches/
+          path: patches
+
       - name: Download Matplotlib wheel
         uses: actions/download-artifact@c850b930e6ba138125429b7e5c93fc707a7f8427  # v4.1.4
         with:
@@ -110,6 +111,11 @@ jobs:
           pyodide venv .venv-pyodide
           source .venv-pyodide/bin/activate
           pip install dist/*.whl
+
+      - name: Apply patch(es)
+        run: |
+          patch -d .venv-pyodide/lib/python3.11/site-packages/matplotlib/ \
+          -p1 < patches/0001-remove-threading-module-usage.patch
 
       - name: Test Matplotlib for Pyodide
         run: |
