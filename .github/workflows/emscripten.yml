@@ -88,12 +88,6 @@ jobs:
       - name: Install pyodide-build
         run: pip install "pydantic<2" pyodide-build==${{ env.PYODIDE_VERSION }}
 
-      - name: Check out baseline images from Matplotlib
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
-        with:
-          sparse-checkout: lib/matplotlib/tests/baseline_images/
-          path: baseline_images
-
       - name: Download Matplotlib wheel
         uses: actions/download-artifact@c850b930e6ba138125429b7e5c93fc707a7f8427  # v4.1.4
         with:
@@ -113,11 +107,18 @@ jobs:
           # Fetch just a single file:
           # https://github.com/actions/checkout/tree/main/?tab=readme-ov-file#fetch-only-a-single-file
           sparse-checkout-cone-mode: false
+          path: patches
 
       - name: Apply patch(es)
         run: |
           patch -d .venv-pyodide/lib/python3.11/site-packages/matplotlib/ \
-          -p1 < ci/emscripten/patches/0001-remove-threading-module-usage.patch
+          -p1 < patches/ci/emscripten/patches/0001-remove-threading-module-usage.patch
+
+      - name: Check out baseline images from Matplotlib
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+        with:
+          sparse-checkout: lib/matplotlib/tests/baseline_images/
+          path: baseline_images
 
       - name: Test Matplotlib for Pyodide
         run: |
