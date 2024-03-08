@@ -8,13 +8,13 @@ https://github.com/pyodide/pyodide/blob/ff8d6daaeb9fd8de41ca4db7a049e2bb31cbde9c
 where the font manager will use a local path to get a fontlist.json
 schema file that is accessible through the Pyodide interpreter.
 ---
- lib/matplotlib/font_manager.py | 3 +--
+ font_manager.py | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
 
-diff --git a/lib/matplotlib/font_manager.py b/lib/matplotlib/font_manager.py
+diff --git a/font_manager.py b/font_manager.py
 index 73da3c418d..7617735c56 100644
---- a/lib/matplotlib/font_manager.py
-+++ b/lib/matplotlib/font_manager.py
+--- a/font_manager.py
++++ b/font_manager.py
 @@ -1565,8 +1565,7 @@ def get_font(font_filepaths, hinting_factor=None):
 
 
