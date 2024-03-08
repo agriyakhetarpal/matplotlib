@@ -55,6 +55,12 @@ jobs:
         run: pip install "pydantic<2" pyodide-build==${{ env.PYODIDE_VERSION }}
 
       - name: Build Matplotlib for Pyodide
+        # From https://github.com/pyodide/pyodide/blob/main/packages/matplotlib/meta.yaml
+        env:
+          # CFLAGS: -s RELOCATABLE=1 -s USE_FREETYPE=1 -s USE_LIBPNG=1 -s USE_ZLIB=1 -fexceptions -fno-lto
+          CFLAGS: -s RELOCATABLE=1 -s USE_LIBPNG=1 -s USE_ZLIB=1 -fexceptions -fno-lto
+          CXXFLAGS: -std=c++14 -fexceptions
+          LDFLAGS: -fexceptions
         run: |
           pyodide build
 
