@@ -1,4 +1,5 @@
 import os
+import platform
 import subprocess
 import sys
 
@@ -18,6 +19,10 @@ def test_parse_to_version_info(version_str, version_tuple):
     assert matplotlib._parse_to_version_info(version_str) == version_tuple
 
 
+@pytest.mark.skipif(
+    ((sys.platform == "emscripten") or (platform.machine() in ["wasm32", "wasm64"])),
+    reason="Pyodide does not support subprocesses"
+    )
 @pytest.mark.skipif(sys.platform == "win32",
                     reason="chmod() doesn't work as is on Windows")
 @pytest.mark.skipif(sys.platform != "win32" and os.geteuid() == 0,
