@@ -103,16 +103,16 @@ jobs:
       - name: Check out patch(es) from Matplotlib
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
         with:
-          sparse-checkout: ci/emscripten/patches/0001-remove-threading-module-usage.patch
-          # Fetch just a single file:
-          # https://github.com/actions/checkout/tree/main/?tab=readme-ov-file#fetch-only-a-single-file
-          sparse-checkout-cone-mode: false
+          sparse-checkout: ci/emscripten/patches/
           path: patches
 
       - name: Apply patch(es)
         run: |
+          echo "Applying patch to remove threading module usage"
           patch -d .venv-pyodide/lib/python3.11/site-packages/matplotlib/ \
           -p1 < patches/ci/emscripten/patches/0001-remove-threading-module-usage.patch
+          patch -d .venv-pyodide/lib/python3.11/site-packages/matplotlib/ \
+          -p1 < patches/ci/emscripten/patches/0002-use-hardcoded-path-for-font-manager.patch
 
       - name: Check out baseline images from Matplotlib
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
@@ -120,12 +120,29 @@ jobs:
           sparse-checkout: lib/matplotlib/tests/baseline_images/
           path: baseline_images
 
+      - name: Check out ancillary data for patches
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+        with:
+          sparse-checkout: ci/emscripten/data/fontlist.json
+          # Fetch just a single file:
+          # https://github.com/actions/checkout/tree/main/?tab=readme-ov-file#fetch-only-a-single-file
+          sparse-checkout-cone-mode: false
+          path: data
+
       - name: Test Matplotlib for Pyodide
         run: |
           source .venv-pyodide/bin/activate
           pip install pytest
+
+          # Move baseline images to the right location
           mkdir -p .venv-pyodide/lib/python3.11/site-packages/matplotlib/tests/baseline_images/
           mv baseline_images/lib/matplotlib/tests/baseline_images/* \
           .venv-pyodide/lib/python3.11/site-packages/matplotlib/tests/
+
+          # Move fontlist.json to the right location
+          # We want to ensure font_manager.py can find it in the same directory
+          mv data/ci/emscripten/data/fontlist.json \
+          .venv-pyodide/lib/python3.11/site-packages/matplotlib/
+
           cd .venv-pyodide/lib/python3.11/site-packages/matplotlib/tests/
           python -m pytest --import-mode=importlib
