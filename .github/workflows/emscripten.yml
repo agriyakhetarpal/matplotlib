@@ -111,6 +111,7 @@ jobs:
           echo "Applying patch to remove threading module usage"
           patch -d .venv-pyodide/lib/python3.11/site-packages/matplotlib/ \
           -p1 < patches/ci/emscripten/patches/0001-remove-threading-module-usage.patch
+          echo "Applying patch to use hardcoded path for font manager"
           patch -d .venv-pyodide/lib/python3.11/site-packages/matplotlib/ \
           -p1 < patches/ci/emscripten/patches/0002-use-hardcoded-path-for-font-manager.patch
 
