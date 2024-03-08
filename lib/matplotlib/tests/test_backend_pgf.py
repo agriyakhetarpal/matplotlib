@@ -1,7 +1,9 @@
 import datetime
 from io import BytesIO
 import os
+import platform
 import shutil
+import sys
 
 import numpy as np
 from packaging.version import parse as parse_version
@@ -95,6 +97,10 @@ except mpl.ExecutableNotFoundError:
 
 # test compiling a figure to pdf with pdflatex
 @needs_pgf_pdflatex
+@pytest.mark.skipif(
+    ((sys.platform == "emscripten") or (platform.machine() in ["wasm32", "wasm64"])),
+    reason="Pyodide does not support process spawning"
+    )
 @pytest.mark.skipif(not _has_tex_package('type1ec'), reason='needs type1ec.sty')
 @pytest.mark.skipif(not _has_tex_package('ucs'), reason='needs ucs.sty')
 @pytest.mark.backend('pgf')
