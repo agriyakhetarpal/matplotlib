@@ -2,6 +2,7 @@
 Helper functions for testing.
 """
 from pathlib import Path
+import platform
 from tempfile import TemporaryDirectory
 import locale
 import logging
@@ -172,6 +173,8 @@ def _check_for_pgf(texsystem):
 
 
 def _has_tex_package(package):
+    if (sys.platform == "emscripten") or (platform.machine() in ["wasm32", "wasm64"]):
+        return False
     try:
         mpl.dviread.find_tex_file(f"{package}.sty")
         return True
