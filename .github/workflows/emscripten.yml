@@ -151,25 +151,21 @@ jobs:
       - name: Test Matplotlib for Pyodide
         run: |
           source .venv-pyodide/bin/activate
-          pip install "pytest<8.1.0"
+
+          # pip install "pytest<8.1.0"
 
           # Move baseline images to the right location
-          mkdir -p .venv-pyodide/lib/python3.11/site-packages/matplotlib/tests/baseline_images/
-          mv baseline_images/lib/matplotlib/tests/baseline_images/* \
-          .venv-pyodide/lib/python3.11/site-packages/matplotlib/tests/
+          # mkdir -p .venv-pyodide/lib/python3.11/site-packages/matplotlib/tests/baseline_images/
+          # mv baseline_images/lib/matplotlib/tests/baseline_images/* \
+          # .venv-pyodide/lib/python3.11/site-packages/matplotlib/tests/
 
           # Move fontlist.json to the right location
           # We want to ensure font_manager.py can find it in the same directory
-          mv data/ci/emscripten/data/fontlist.json \
-          .venv-pyodide/lib/python3.11/site-packages/matplotlib/
+          # mv data/ci/emscripten/data/fontlist.json \
+          # .venv-pyodide/lib/python3.11/site-packages/matplotlib/
 
-          # Move JavaScript test suite to the right location
-          mv js/ci/pytest_matplotlib_pyodide.js \
-          .venv-pyodide/lib/python3.11/site-packages/matplotlib/tests/
-
-          cd .venv-pyodide/lib/python3.11/site-packages/matplotlib/tests/
-
+          # cd .venv-pyodide/lib/python3.11/site-packages/matplotlib/tests/
           # python -m pytest
 
           npm install pyodide@${{ env.PYODIDE_VERSION }}
-          node pytest_matplotlib_pyodide.js
+          node js/ci/pytest_matplotlib_pyodide.js
