@@ -1,0 +1,33 @@
+From 104216ca846c9aa0903f96a28353cd1b02b7a6a3 Mon Sep 17 00:00:00 2001
+From: Hood Chatham <roberthoodchatham@gmail.com>
+Date: Thu, 21 Sep 2023 15:07:24 -0700
+Subject: [PATCH] FIX Turn off `settings.LTO` if `-fno-lto` is passed
+
+Backport of https://github.com/emscripten-core/emscripten/pull/20309
+
+This patch can be removed when Pyodide releases a new version (0.25.1 or later)
+that includes this fix with an updated Emscripten version toolchain. The version
+is 0.25.0 at the time of writing.
+
+This patch is needed to fix a bug in the Emscripten toolchain that causes
+`settings.LTO` to be set to `full` even if no link-time optimization is requested.
+
+---
+ emcc.py | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/emcc.py b/emcc.py
+index 84787021b..f06b27017 100644
+--- a/emcc.py
++++ b/emcc.py
+@@ -3454,6 +3454,8 @@ def parse_args(newargs):
+         settings.LTO = arg.split('=')[1]
+       else:
+         settings.LTO = 'full'
++    elif arg == "-fno-lto":
++      settings.LTO = 0
+     elif check_arg('--llvm-lto'):
+       logger.warning('--llvm-lto ignored when using llvm backend')
+       consume_arg()
+--
+2.25.1
