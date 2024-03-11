@@ -70,7 +70,7 @@ jobs:
           name: matplotlib-pyodide-wheel
           path: dist/*.whl
 
-  test-pyodide:
+  test-wasm-emscripten:
     name: Test Matplotlib distribution for Pyodide
     runs-on: ubuntu-22.04
     needs: [build-wasm-emscripten]
@@ -106,20 +106,25 @@ jobs:
           source .venv-pyodide/bin/activate
           pip install dist/*.whl
 
-      - name: Check out patch(es) from Matplotlib
+      - name: Check out necessary patch(es)
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
         with:
           sparse-checkout: ci/emscripten/patches/
           path: patches
 
-      - name: Apply patch(es)
+      - name: Apply patch(es) for Matplotlib/Pyodide/Emscripten
         run: |
           echo "Applying patch to remove threading module usage"
           patch -d .venv-pyodide/lib/python3.11/site-packages/matplotlib/ \
           -p1 < patches/ci/emscripten/patches/0001-remove-threading-module-usage.patch
+
           echo "Applying patch to use hardcoded path for font manager"
           patch -d .venv-pyodide/lib/python3.11/site-packages/matplotlib/ \
           -p1 < patches/ci/emscripten/patches/0002-use-hardcoded-path-for-font-manager.patch
+
+          echo "Applying patch to disable settings.LTO if -fno-lto is passed"
+          patch -d $EMSDK/upstream/emscripten/ \
+          -p1 < patches/ci/emscripten/patches/0003-properly-disable-link-time-optimization-if-requested.patch
 
       - name: Check out baseline images from Matplotlib
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
@@ -139,7 +144,7 @@ jobs:
       - name: Test Matplotlib for Pyodide
         run: |
           source .venv-pyodide/bin/activate
-          pip install pytest
+          pip install "pytest<8.1.0"
 
           # Move baseline images to the right location
           mkdir -p .venv-pyodide/lib/python3.11/site-packages/matplotlib/tests/baseline_images/
@@ -152,4 +157,4 @@ jobs:
           .venv-pyodide/lib/python3.11/site-packages/matplotlib/
 
           cd .venv-pyodide/lib/python3.11/site-packages/matplotlib/tests/
-          python -m pytest --import-mode=importlib
+          python -m pytest
