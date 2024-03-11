@@ -141,6 +141,13 @@ jobs:
           sparse-checkout-cone-mode: false
           path: data
 
+      - name: Check out JavaScript test suite
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+        with:
+          sparse-checkout: ci/pytest_matplotlib_pyodide.js
+          sparse-checkout-cone-mode: false
+          path: js
+
       - name: Test Matplotlib for Pyodide
         run: |
           source .venv-pyodide/bin/activate
@@ -158,3 +165,5 @@ jobs:
 
           cd .venv-pyodide/lib/python3.11/site-packages/matplotlib/tests/
           python -m pytest
+
+          node js/pytest_matplotlib_pyodide.js
