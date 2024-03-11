@@ -163,7 +163,13 @@ jobs:
           mv data/ci/emscripten/data/fontlist.json \
           .venv-pyodide/lib/python3.11/site-packages/matplotlib/
 
-          cd .venv-pyodide/lib/python3.11/site-packages/matplotlib/tests/
-          python -m pytest
+          # Move JavaScript test suite to the right location
+          mv js/ci/pytest_matplotlib_pyodide.js \
+          .venv-pyodide/lib/python3.11/site-packages/matplotlib/tests/
 
-          node js/pytest_matplotlib_pyodide.js
+          cd .venv-pyodide/lib/python3.11/site-packages/matplotlib/tests/
+
+          # python -m pytest
+
+          npm install pyodide@${{ env.PYODIDE_VERSION }}
+          node pytest_matplotlib_pyodide.js
