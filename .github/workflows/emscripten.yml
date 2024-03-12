@@ -51,6 +51,12 @@ jobs:
           version: ${{ env.EMSCRIPTEN_VERSION }}
           actions-cache-folder: emsdk-cache
 
+      - name: Apply patch(es) for Emscripten
+        run: |
+          echo "Applying patch to disable settings.LTO if -fno-lto is passed"
+          patch -d $EMSDK/upstream/emscripten/ \
+          -p1 < ci/emscripten/patches/0003-properly-disable-link-time-optimization-if-requested.patch
+
       - name: Install pyodide-build
         run: pip install "pydantic<2" pyodide-build==${{ env.PYODIDE_VERSION }}
 
@@ -112,7 +118,7 @@ jobs:
           sparse-checkout: ci/emscripten/patches/
           path: patches
 
-      - name: Apply patch(es) for Matplotlib/Pyodide/Emscripten
+      - name: Apply patch(es)
         run: |
           echo "Applying patch to remove threading module usage"
           patch -d .venv-pyodide/lib/python3.11/site-packages/matplotlib/ \
@@ -121,10 +127,6 @@ jobs:
           echo "Applying patch to use hardcoded path for font manager"
           patch -d .venv-pyodide/lib/python3.11/site-packages/matplotlib/ \
           -p1 < patches/ci/emscripten/patches/0002-use-hardcoded-path-for-font-manager.patch
-
-          echo "Applying patch to disable settings.LTO if -fno-lto is passed"
-          patch -d $EMSDK/upstream/emscripten/ \
-          -p1 < patches/ci/emscripten/patches/0003-properly-disable-link-time-optimization-if-requested.patch
 
       - name: Check out baseline images from Matplotlib
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
@@ -152,20 +154,20 @@ jobs:
         run: |
           source .venv-pyodide/bin/activate
 
-          # pip install "pytest<8.1.0"
+          pip install "pytest<8.1.0"
 
           # Move baseline images to the right location
-          # mkdir -p .venv-pyodide/lib/python3.11/site-packages/matplotlib/tests/baseline_images/
-          # mv baseline_images/lib/matplotlib/tests/baseline_images/* \
-          # .venv-pyodide/lib/python3.11/site-packages/matplotlib/tests/
+          mkdir -p .venv-pyodide/lib/python3.11/site-packages/matplotlib/tests/baseline_images/
+          mv baseline_images/lib/matplotlib/tests/baseline_images/* \
+          .venv-pyodide/lib/python3.11/site-packages/matplotlib/tests/
 
           # Move fontlist.json to the right location
           # We want to ensure font_manager.py can find it in the same directory
-          # mv data/ci/emscripten/data/fontlist.json \
-          # .venv-pyodide/lib/python3.11/site-packages/matplotlib/
+          mv data/ci/emscripten/data/fontlist.json \
+          .venv-pyodide/lib/python3.11/site-packages/matplotlib/
 
-          # cd .venv-pyodide/lib/python3.11/site-packages/matplotlib/tests/
-          # python -m pytest
+          cd .venv-pyodide/lib/python3.11/site-packages/matplotlib/tests/
+          python -m pytest
 
-          npm install pyodide@${{ env.PYODIDE_VERSION }}
-          node js/ci/pytest_matplotlib_pyodide.js
+          # npm install pyodide@${{ env.PYODIDE_VERSION }}
+          # node js/ci/pytest_matplotlib_pyodide.js
